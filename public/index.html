@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>TaskFlow</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+    .done { text-decoration: line-through; color: gray; }
+    #error { color: crimson; }
+  </style>
+</head>
+<body>
+  <h1>TaskFlow</h1>
+  <form id="task-form">
+    <input id="title" placeholder="Nueva tarea" autocomplete="off">
+    <button type="submit">Agregar</button>
+  </form>
+  <p id="error"></p>
+  <ul id="task-list"></ul>
+  <script src="app.js"></script>
+</body>
+</html>

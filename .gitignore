@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+reports/
+data/
+deployments/
+cypress/videos/
+cypress/screenshots/
+*.tgz
+junit.xml

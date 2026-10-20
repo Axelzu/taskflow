@@ -1,0 +1,47 @@
+{
+  "name": "taskflow",
+  "version": "1.0.0",
+  "description": "Gestor de tareas para el deber de Integración Continua",
+  "main": "src/server.js",
+  "files": ["src", "public"],
+  "scripts": {
+    "start": "node src/server.js",
+    "lint": "eslint .",
+    "test:unit": "jest tests/unit --coverage --coverageDirectory=coverage/unit",
+    "test:api": "jest tests/api --coverage --coverageDirectory=coverage/api",
+    "test": "npm run test:unit && npm run test:api",
+    "cypress:run": "cypress run",
+    "e2e": "start-server-and-test start http://localhost:3000/api/health cypress:run",
+    "build": "npm pack"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "reporters": ["default", "jest-junit"],
+    "coverageReporters": ["lcov", "text-summary"]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Axelzu/taskflow.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Axelzu/taskflow/issues"
+  },
+  "homepage": "https://github.com/Axelzu/taskflow#readme",
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "cypress": "^16.2.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
+    "jest-junit": "^17.0.0",
+    "start-server-and-test": "^3.0.13",
+    "supertest": "^7.3.1"
+  }
+}
