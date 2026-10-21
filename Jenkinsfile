@@ -29,7 +29,7 @@ pipeline {
                 githubStatus('pending', "Build #${env.BUILD_NUMBER} en curso")
                 echo "Rama: ${env.BRANCH_NAME} | Commit: ${env.GIT_COMMIT}"
                 npmInstall()
-                run 'npm run build'
+                runCmd 'npm run build'
                 archiveArtifacts artifacts: '*.tgz', fingerprint: true
             }
         }
@@ -38,24 +38,24 @@ pipeline {
             failFast true
             parallel {
                 stage('Lint (ESLint)') {
-                    steps { run 'npm run lint' }
+                    steps { runCmd 'npm run lint' }
                 }
                 stage('Pruebas unitarias') {
                     environment {
                         JEST_JUNIT_OUTPUT_DIR  = 'reports/junit'
                         JEST_JUNIT_OUTPUT_NAME = 'unit.xml'
                     }
-                    steps { run 'npm run test:unit' }
+                    steps { runCmd 'npm run test:unit' }
                 }
                 stage('Pruebas de API') {
                     environment {
                         JEST_JUNIT_OUTPUT_DIR  = 'reports/junit'
                         JEST_JUNIT_OUTPUT_NAME = 'api.xml'
                     }
-                    steps { run 'npm run test:api' }
+                    steps { runCmd 'npm run test:api' }
                 }
                 stage('Auditoría de dependencias') {
-                    steps { run 'npm audit --omit=dev --audit-level=high' }
+                    steps { runCmd 'npm audit --omit=dev --audit-level=high' }
                 }
             }
         }
@@ -68,7 +68,7 @@ pipeline {
                 script {
                     def scannerHome = tool 'SonarScanner'
                     withSonarQubeEnv('SonarCloud') {
-                        run(isUnix() ? "${scannerHome}/bin/sonar-scanner"
+                        runCmd(isUnix() ? "${scannerHome}/bin/sonar-scanner"
                                      : "${scannerHome}\\bin\\sonar-scanner.bat")
                     }
                 }
@@ -92,7 +92,7 @@ pipeline {
                     withEnv(["PORT=${port}",
                              "CYPRESS_BASE_URL=http://localhost:${port}",
                              "DATA_FILE=${env.WORKSPACE}/tmp/e2e-tasks.json"]) {
-                        run "npx start-server-and-test start http://localhost:${port}/api/health cypress:run"
+                        runCmd "npx start-server-and-test start http://localhost:${port}/api/health cypress:run"
                     }
                 }
             }
@@ -100,7 +100,7 @@ pipeline {
 
         stage('Deploy a staging') {
             when { branch 'develop' }
-            steps { run 'node scripts/deploy.js staging' }
+            steps { runCmd 'node scripts/deploy.js staging' }
         }
 
         stage('Deploy a producción') {
@@ -109,7 +109,7 @@ pipeline {
                 message '¿Desplegar TaskFlow a producción?'
                 ok 'Desplegar'
             }
-            steps { run 'node scripts/deploy.js production' }
+            steps { runCmd 'node scripts/deploy.js production' }
         }
     }
 
