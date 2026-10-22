@@ -62,7 +62,7 @@ pipeline {
 
         stage('Análisis SonarQube') {
             when {
-                anyOf { branch 'main'; branch 'develop'; changeRequest() }
+                anyOf { branch 'main'; changeRequest() }
             }
             steps {
                 script {
