@@ -62,7 +62,7 @@ pipeline {
 
         stage('Análisis SonarQube') {
             when {
-                anyOf { branch 'main'; branch 'develop'; changeRequest() }
+                anyOf { branch 'main'; changeRequest() }
             }
             steps {
                 script {
@@ -104,14 +104,7 @@ pipeline {
         }
 
         stage('Deploy a producción') {
-            when {
-                beforeInput true
-                branch 'main'
-            }
-            input {
-                message '¿Desplegar TaskFlow a producción?'
-                ok 'Desplegar'
-            }
+            when { branch 'main' }
             steps { runCmd 'node scripts/deploy.js production' }
         }
     }
