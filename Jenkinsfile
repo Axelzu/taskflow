@@ -104,7 +104,10 @@ pipeline {
         }
 
         stage('Deploy a producción') {
-            when { branch 'main' }
+            when {
+                beforeInput true
+                branch 'main'
+            }
             input {
                 message '¿Desplegar TaskFlow a producción?'
                 ok 'Desplegar'
