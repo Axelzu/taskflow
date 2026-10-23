@@ -1,4 +1,4 @@
-describe('TaskFlow E2E', () => {
+describe('TaskNest E2E', () => {
   it('crea y completa una tarea', () => {
     const title = `Tarea E2E ${Date.now()}`;
     cy.visit('/');

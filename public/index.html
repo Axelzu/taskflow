@@ -2,21 +2,124 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>TaskFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaskNest · Gestor de tareas</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
-    .done { text-decoration: line-through; color: gray; }
-    #error { color: crimson; }
+    :root {
+      --bg: #eef2f7;
+      --card: #ffffff;
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --ok: #16a34a;
+      --danger: #dc2626;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #e0e7ff 0%, var(--bg) 60%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+    .card {
+      width: 100%;
+      max-width: 620px;
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(79, 70, 229, 0.12);
+      overflow: hidden;
+    }
+    .top {
+      background: var(--primary);
+      color: #fff;
+      padding: 24px 28px;
+    }
+    .top h1 { margin: 0; font-size: 28px; }
+    .subtitle { margin: 4px 0 0; opacity: 0.85; }
+    #task-form {
+      display: flex;
+      gap: 8px;
+      padding: 20px 28px 0;
+    }
+    #title {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+    }
+    #title:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #task-form button { background: var(--primary); color: #fff; font-weight: 600; }
+    #task-form button:hover { background: var(--primary-dark); }
+    #error { color: var(--danger); margin: 8px 28px 0; min-height: 20px; font-size: 14px; }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 28px 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filters button { background: #f3f4f6; color: var(--text); padding: 6px 12px; }
+    .filters button.active { background: var(--primary); color: #fff; }
+    #counter { color: var(--muted); font-size: 14px; }
+    #task-list { list-style: none; margin: 0; padding: 0 28px 24px; }
+    .task {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    .task-info { display: flex; flex-direction: column; }
+    .task-date { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .task.done .task-title { text-decoration: line-through; color: var(--muted); }
+    .task-actions { display: flex; gap: 6px; }
+    .btn-toggle { background: #dcfce7; color: var(--ok); }
+    .btn-delete { background: #fee2e2; color: var(--danger); }
+    .empty { color: var(--muted); text-align: center; padding: 16px; }
   </style>
 </head>
 <body>
-  <h1>TaskFlow</h1>
-  <form id="task-form">
-    <input id="title" placeholder="Nueva tarea" autocomplete="off">
-    <button type="submit">Agregar</button>
-  </form>
-  <p id="error"></p>
-  <ul id="task-list"></ul>
+  <main class="card">
+    <header class="top">
+      <h1>TaskNest</h1>
+      <p class="subtitle">Organiza tus pendientes del semestre</p>
+    </header>
+
+    <form id="task-form">
+      <input id="title" aria-label="Nueva tarea" placeholder="¿Qué tienes que hacer?" autocomplete="off">
+      <button type="submit">Agregar</button>
+    </form>
+    <p id="error" role="alert"></p>
+
+    <div class="toolbar">
+      <div class="filters">
+        <button type="button" data-filter="" class="active">Todas</button>
+        <button type="button" data-filter="pending">Pendientes</button>
+        <button type="button" data-filter="done">Completadas</button>
+      </div>
+      <span id="counter"></span>
+    </div>
+
+    <ul id="task-list"></ul>
+  </main>
   <script src="app.js"></script>
 </body>
 </html>
