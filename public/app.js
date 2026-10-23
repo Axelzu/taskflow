@@ -30,7 +30,7 @@ function renderTask(t) {
   toggle.textContent = t.done ? 'Reabrir' : 'Completar';
   toggle.onclick = async () => {
     await fetch(`/api/tasks/${t.id}/toggle`, { method: 'PATCH' });
-    load();
+    void load();
   };
 
   const del = document.createElement('button');
@@ -38,7 +38,7 @@ function renderTask(t) {
   del.textContent = 'Eliminar';
   del.onclick = async () => {
     await fetch(`/api/tasks/${t.id}`, { method: 'DELETE' });
-    load();
+    void load();
   };
 
   actions.append(toggle, del);
@@ -68,7 +68,7 @@ filterButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     currentFilter = btn.dataset.filter;
     filterButtons.forEach((b) => b.classList.toggle('active', b === btn));
-    load();
+    void load();
   });
 });
 
@@ -81,7 +81,7 @@ form.addEventListener('submit', async (e) => {
   });
   error.textContent = res.ok ? '' : (await res.json()).error;
   input.value = '';
-  load();
+  void load();
 });
 
-load();
+void load();
