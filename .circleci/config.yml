@@ -1,0 +1,238 @@
+version: 2.1   # La 2.1 permite orbs, executors, commands y parameters
+
+# ORBS: paquetes de configuración publicados (como plugins). Este es el oficial de SonarQube Cloud
+orbs:
+  sonarcloud: sonarsource/sonarcloud@4.0
+
+# EXECUTORS: el entorno donde corre cada job (equivale a agent + tools de Jenkins)
+executors:
+  node:
+    docker:
+      - image: cimg/node:lts            # Node.js LTS oficial de CircleCI
+    environment:
+      CI: "true"
+  node-browsers:
+    docker:
+      - image: cimg/node:lts-browsers   # Igual, pero con lo necesario para abrir un navegador (Cypress)
+    environment:
+      CI: "true"
+
+# COMMANDS: pasos reutilizables (equivalen a la librería compartida ci-lib de Jenkins)
+commands:
+  instalar-dependencias:
+    description: Restaura la caché, ejecuta npm ci y guarda la caché
+    steps:
+      - restore_cache:
+          keys:
+            - deps-v1-{{ checksum "package-lock.json" }}   # Caché exacta si el lock no cambió
+            - deps-v1-                                     # Si cambió, usa la más reciente que haya
+      - run:
+          name: Instalar dependencias (npm ci)
+          command: npm ci --prefer-offline --no-audit --no-fund
+      - save_cache:
+          key: deps-v1-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm             # Paquetes descargados por npm
+            - ~/.cache/Cypress   # Navegador de Cypress
+
+  preparar:
+    description: Descarga el código y trae node_modules y el paquete desde el job build
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+
+  notificar-discord:
+    description: Envía un mensaje al canal de Discord
+    parameters:
+      mensaje:
+        type: string
+      cuando:
+        type: enum
+        enum: ["always", "on_success", "on_fail"]
+        default: "always"
+    steps:
+      - run:
+          name: Notificar a Discord
+          when: << parameters.cuando >>
+          command: |
+            if [ -z "$DISCORD_WEBHOOK" ]; then echo "DISCORD_WEBHOOK no configurado"; exit 0; fi
+            curl -sS -H "Content-Type: application/json" \
+              -d "{\"content\": \"<< parameters.mensaje >>\"}" \
+              "$DISCORD_WEBHOOK"
+
+  avisar-fallo:
+    description: Si algo falló en el job, avisa a Discord (equivale a post failure)
+    steps:
+      - notificar-discord:
+          cuando: on_fail
+          mensaje: "❌ CircleCI: FALLÓ el job $CIRCLE_JOB en la rama $CIRCLE_BRANCH. $CIRCLE_BUILD_URL"
+
+# JOBS: cada uno corre en su propio contenedor
+jobs:
+  build:
+    executor: node
+    steps:
+      - checkout
+      - notificar-discord:
+          mensaje: "🟡 CircleCI: inició el pipeline en la rama $CIRCLE_BRANCH (commit ${CIRCLE_SHA1:0:7}). $CIRCLE_BUILD_URL"
+      - instalar-dependencias
+      - run:
+          name: Empaquetar (npm pack)
+          command: |
+            npm run build
+            mkdir -p dist && cp *.tgz dist/
+      - store_artifacts:
+          path: dist
+      - persist_to_workspace:      # Comparte archivos con los jobs siguientes
+          root: .
+          paths:
+            - node_modules
+            - "*.tgz"
+      - avisar-fallo
+
+  lint:
+    executor: node
+    steps:
+      - preparar
+      - run:
+          name: ESLint
+          command: npm run lint
+      - avisar-fallo
+
+  pruebas:
+    executor: node
+    parallelism: 2                 # PARALELISMO DE CIRCLECI: 2 contenedores ejecutan este mismo job
+    environment:
+      JEST_JUNIT_OUTPUT_DIR: reports/junit
+      JEST_JUNIT_ADD_FILE_ATTRIBUTE: "true"   # Guarda el archivo de cada prueba para dividir por tiempos
+    steps:
+      - preparar
+      - run:
+          name: Jest en paralelo (pruebas divididas entre contenedores)
+          command: |
+            # Lista todos los archivos de prueba y le toca una parte a este contenedor
+            ARCHIVOS=$(circleci tests glob "tests/**/*.test.js" | circleci tests split --split-by=timings)
+            echo "Contenedor $CIRCLE_NODE_INDEX de $CIRCLE_NODE_TOTAL ejecuta: $ARCHIVOS"
+            JEST_JUNIT_OUTPUT_NAME="jest-$CIRCLE_NODE_INDEX.xml" npx jest $ARCHIVOS \
+              --coverage --coverageDirectory="coverage/node-$CIRCLE_NODE_INDEX"
+      - store_test_results:        # También le da a CircleCI los tiempos para la próxima división
+          path: reports/junit
+      - persist_to_workspace:      # Guarda la cobertura para SonarQube
+          root: .
+          paths:
+            - coverage
+      - avisar-fallo
+
+  auditoria:
+    executor: node
+    steps:
+      - preparar
+      - run:
+          name: Auditoría de dependencias
+          command: npm audit --omit=dev --audit-level=high
+      - avisar-fallo
+
+  sonarqube:
+    executor: node
+    steps:
+      - preparar                   # Trae la cobertura de los dos contenedores de pruebas
+      - sonarcloud/scan            # Usa SONAR_TOKEN y sonar-project.properties
+      - avisar-fallo
+
+  e2e:
+    executor: node-browsers
+    steps:
+      - preparar
+      - restore_cache:             # Trae el navegador de Cypress
+          keys:
+            - deps-v1-{{ checksum "package-lock.json" }}
+      - run:
+          name: Cypress - pruebas E2E
+          command: npm run e2e
+      - store_test_results:
+          path: reports/cypress
+      - avisar-fallo
+
+  deploy:
+    executor: node
+    parameters:                    # Un solo job sirve para los dos entornos
+      entorno:
+        type: enum
+        enum: ["staging", "production"]
+    steps:
+      - preparar
+      - run:
+          name: Desplegar a << parameters.entorno >>
+          command: DEPLOY_DIR=deployments node scripts/deploy.js << parameters.entorno >>
+      - store_artifacts:
+          path: deployments
+      - avisar-fallo
+
+  notificar-exito:
+    executor: node
+    steps:
+      - notificar-discord:
+          mensaje: "✅ CircleCI: pipeline EXITOSO en la rama $CIRCLE_BRANCH. https://app.circleci.com/pipelines/workflows/$CIRCLE_WORKFLOW_ID"
+
+# WORKFLOWS: qué jobs corren, en qué orden y en qué rama
+workflows:
+  feature:
+    when:                          # Cualquier rama que no sea main ni develop
+      and:
+        - not:
+            equal: [ main, << pipeline.git.branch >> ]
+        - not:
+            equal: [ develop, << pipeline.git.branch >> ]
+    jobs:
+      - build
+      - lint:
+          requires: [build]
+      - pruebas:
+          requires: [build]
+      - auditoria:
+          requires: [build]
+      - notificar-exito:
+          requires: [lint, pruebas, auditoria]
+
+  develop:
+    when:
+      equal: [ develop, << pipeline.git.branch >> ]
+    jobs:
+      - build
+      - lint:
+          requires: [build]
+      - pruebas:
+          requires: [build]
+      - auditoria:
+          requires: [build]
+      - e2e:
+          requires: [lint, pruebas, auditoria]
+      - deploy:
+          name: deploy-staging
+          entorno: staging
+          requires: [e2e]
+      - notificar-exito:
+          requires: [deploy-staging]
+
+  main:
+    when:
+      equal: [ main, << pipeline.git.branch >> ]
+    jobs:
+      - build
+      - lint:
+          requires: [build]
+      - pruebas:
+          requires: [build]
+      - auditoria:
+          requires: [build]
+      - sonarqube:
+          requires: [lint, pruebas, auditoria]
+      - e2e:
+          requires: [lint, pruebas, auditoria]
+      - deploy:
+          name: deploy-produccion
+          entorno: production
+          requires: [sonarqube, e2e]
+      - notificar-exito:
+          requires: [deploy-produccion]
